@@ -7,7 +7,7 @@ services:
     ports:
       - "2222:80"
     environment:
-      - S3_PATH=s3://dev-headless-ci/en_model.tar.gz
+      - S3_PATH=${S3_PATH}
     volumes:
       - spotlight-data:/opt/spotlight
     restart: unless-stopped
