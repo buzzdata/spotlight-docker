@@ -1,5 +1,17 @@
-version: '3.5'    
+version: '3.8'
 services:
+
+  spotlight:
+    build: .
+    container_name: dbpedia-spotlight
+    ports:
+      - "2222:80"
+    environment:
+      - S3_PATH=s3://dev-headless-ci/en_model.tar.gz
+    volumes:
+      - spotlight-data:/opt/spotlight
+    restart: unless-stopped
+
   spotlight.en:
     image: dbpedia/dbpedia-spotlight
     container_name: dbpedia-spotlight.en
@@ -31,5 +43,4 @@ services:
     command: /bin/spotlight.sh pt
   
 volumes:
-  spotlight-model:
-    external: true
+  spotlight-data:

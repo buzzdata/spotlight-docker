@@ -1,34 +1,39 @@
 #!/bin/sh
-
 set -e
 
-MODELFOLDER=/opt/spotlight
-MODEL_DIR=$MODELFOLDER/models/en
-TAR_FILE=/tmp/model.tar.gz
+MODEL_DIR="/opt/spotlight/en"
+MODEL_TAR="/tmp/model.tar.gz"
 
-# 🔹 CHANGE THIS to your S3 tar.gz path
-S3_TAR_PATH="s3://dev-headless-ci/en_model.tar.gz"
+# Default S3 path (can be overridden)
+S3_PATH=${S3_PATH:-"s3://dev-headless-ci/en_model.tar.gz"}
 
-echo "Model directory: $MODEL_DIR"
+echo "Starting DBpedia Spotlight (S3 mode)..."
+echo "Using S3 path: $S3_PATH"
 
-mkdir -p $MODELFOLDER/models
+if [ ! -d "$MODEL_DIR" ]; then
+    echo "Model not found. Downloading from S3..."
 
-echo "Downloading model tar.gz from S3..."
+    # retry logic
+    for i in 1 2 3; do
+        aws s3 cp "$S3_PATH" "$MODEL_TAR" && break
+        echo "Download failed, retrying ($i/3)..."
+        sleep 5
+    done
 
-# Download tar.gz
-aws s3 cp $S3_TAR_PATH $TAR_FILE
+    echo "Extracting model..."
+    mkdir -p /opt/spotlight
+    tar -xzf "$MODEL_TAR" -C /opt/spotlight
 
-echo "Extracting model..."
+    echo "Cleaning up..."
+    rm -f "$MODEL_TAR"
 
-# Extract (this should create /opt/spotlight/models/en)
-tar -xvf $TAR_FILE -C $MODELFOLDER/models
+    echo "Model ready."
+else
+    echo "Model already exists. Skipping download."
+fi
 
-# Cleanup tar
-rm -f $TAR_FILE
+echo "Starting Spotlight server..."
 
-echo "$MODEL_DIR http://0.0.0.0:80/rest/"
-
-# 🚀 Start Spotlight (same as original)
-java -Dfile.encoding=UTF-8 -Xmx15G \
-    -jar /opt/spotlight/dbpedia-spotlight.jar \
-    $MODEL_DIR http://0.0.0.0:80/rest
+exec java -jar /opt/spotlight/rest-*.jar \
+    "$MODEL_DIR" \
+    http://0.0.0.0:80/rest
