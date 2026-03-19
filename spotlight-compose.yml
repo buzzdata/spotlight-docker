@@ -1,46 +1,20 @@
-version: '3.8'
 services:
-
   spotlight:
     build: .
+    image: dbpedia-spotlight
+    env_file:
+      - ".env"
     container_name: dbpedia-spotlight
     ports:
       - "2222:80"
     environment:
       - S3_PATH=${S3_PATH}
     volumes:
-      - spotlight-data:/opt/spotlight
+      # Mount only model data so image's /opt/spotlight (JAR + script) stays visible
+      - spotlight-data:/opt/spotlight/data
     restart: unless-stopped
+    stdin_open: true
+    tty: true
 
-  spotlight.en:
-    image: dbpedia/dbpedia-spotlight
-    container_name: dbpedia-spotlight.en
-    volumes:
-       - spotlight-model:/opt/spotlight/models
-    restart: unless-stopped   
-    ports:
-       - "0.0.0.0:2222:80"  
-    command: /bin/spotlight_s3.sh
-    
-  spotlight.de:
-    image: dbpedia/dbpedia-spotlight
-    container_name: dbpedia-spotlight.de
-    volumes:
-       - spotlight-model:/opt/spotlight/models
-    restart: unless-stopped   
-    ports:
-       - "0.0.0.0:2223:80"  
-    command: /bin/spotlight.sh de
-    
-  spotlight.pt:
-    image: dbpedia/dbpedia-spotlight
-    container_name: dbpedia-spotlight.pt
-    volumes:
-       - spotlight-model:/opt/spotlight/models
-    restart: unless-stopped   
-    ports:
-       - "0.0.0.0:2224:80"  
-    command: /bin/spotlight.sh pt
-  
 volumes:
   spotlight-data:

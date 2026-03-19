@@ -1,28 +1,35 @@
 # Variables
 IMAGE_NAME=dbpedia-spotlight
-SERVICE_NAME=spotlight
-S3_PATH?=s3://dev-headless-ci/en_model.tar.gz
+
+# S3_PATH: from .env (if present), else fallback; override with make run S3_PATH=...
+-include .env
+S3_PATH ?= s3://dev-headless-ci/en_model.tar.gz
+export S3_PATH
 
 # Build image
 build:
-	docker build -t $(IMAGE_NAME) .
+	docker build \
+	--build-arg AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" \
+    --build-arg AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
+    --build-arg AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION}" \
+	-t $(IMAGE_NAME) .
 
-# Run only spotlight service
+# Run only spotlight service (detached)
 deploy:
-	S3_PATH=$(S3_PATH) docker compose up -d $(SERVICE_NAME)
+	docker compose -f spotlight-compose.yml --compatibility up -d
 
-# Rebuild + run
-run: 
-	docker compose up $(SERVICE_NAME)
+# Run in foreground with logs (default S3 path or: make run S3_PATH=s3://bucket/key)
+run:
+	docker compose -f spotlight-compose.yml --compatibility up
 
 # Stop service
-down:
-	docker compose stop $(SERVICE_NAME)
+stop:
+	docker compose -f spotlight-compose.yml stop
 
-# Logs
+# Logs (follow)
 logs:
-	docker compose logs -f $(SERVICE_NAME)
+	docker compose -f spotlight-compose.yml logs -f
 
 # Remove container + volume (force fresh download)
 reset:
-	docker compose down -v
+	docker compose -f spotlight-compose.yml down -v

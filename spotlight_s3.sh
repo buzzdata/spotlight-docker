@@ -1,16 +1,24 @@
 #!/bin/sh
 set -e
 
-MODEL_DIR="/opt/spotlight/en"
+DATA_DIR="/opt/spotlight/data"
 MODEL_TAR="/tmp/model.tar.gz"
 
-# Default S3 path (can be overridden)
-S3_PATH=${S3_PATH:-"s3://dev-headless-ci/en_model.tar.gz"}
+# S3_PATH must be set by environment (.env or Makefile)
+if [ -z "$S3_PATH" ]; then
+    echo "Error: S3_PATH is not set. Set it in .env or run with S3_PATH=..."
+    exit 1
+fi
 
 echo "Starting DBpedia Spotlight (S3 mode)..."
 echo "Using S3 path: $S3_PATH"
 
-if [ ! -d "$MODEL_DIR" ]; then
+# Download if no valid model (JAR needs model/tokens.mem under DATA_DIR)
+NEED_DOWNLOAD=true
+if [ -d "$DATA_DIR" ] && [ -n "$(find "$DATA_DIR" -type f -path '*/model/tokens.mem' 2>/dev/null | head -1)" ]; then
+    NEED_DOWNLOAD=false
+fi
+if [ "$NEED_DOWNLOAD" = true ]; then
     echo "Model not found. Downloading from S3..."
 
     # retry logic
@@ -21,8 +29,8 @@ if [ ! -d "$MODEL_DIR" ]; then
     done
 
     echo "Extracting model..."
-    mkdir -p /opt/spotlight
-    tar -xzf "$MODEL_TAR" -C /opt/spotlight
+    mkdir -p "$DATA_DIR"
+    tar -xzf "$MODEL_TAR" -C "$DATA_DIR"
 
     echo "Cleaning up..."
     rm -f "$MODEL_TAR"
@@ -32,8 +40,17 @@ else
     echo "Model already exists. Skipping download."
 fi
 
+# JAR expects a dir that contains model/tokens.mem; tarball may have en/, en_model/en/, etc.
+MODEL_TOKENS=$(find "$DATA_DIR" -type f -path '*/model/tokens.mem' 2>/dev/null | head -1)
+if [ -z "$MODEL_TOKENS" ]; then
+    echo "Error: Could not find model/tokens.mem under $DATA_DIR (invalid or unexpected tarball layout)"
+    exit 1
+fi
+MODEL_DIR=$(dirname "$(dirname "$MODEL_TOKENS")")
+echo "Using model directory: $MODEL_DIR"
+
 echo "Starting Spotlight server..."
 
-exec java -jar /opt/spotlight/rest-*.jar \
+exec java -Dfile.encoding=UTF-8 -Xmx15G -jar /opt/spotlight/dbpedia-spotlight.jar \
     "$MODEL_DIR" \
     http://0.0.0.0:80/rest
