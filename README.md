@@ -2,14 +2,14 @@
 
 This image runs [DBpedia Spotlight](https://www.dbpedia-spotlight.org/) for **English only**. It does **not** download models from DBpedia.
 
-You **bind-mount one host directory** to **`/opt/spotlight/models`**. The startup script checks whether **`en/`** already has model files; if not, it **extracts** your **`.tar.gz`** once and **does not modify or delete** the archive afterward. Then it starts the service.
+You **bind-mount one host directory** to **`/opt/spotlight/models`**. The startup script checks whether **`en_model/`** already has model files (the path used after extracting the English model tar); if not, it **extracts** your **`.tar.gz`** once and **does not modify or delete** the archive afterward. Then it starts the service.
 
 The container listens on **port 80** internally; the API base path is **`/rest/`** (for example **`/rest/annotate`**).
 
 ## Requirements
 
 - Docker
-- A host folder mounted at **`/opt/spotlight/models`** containing either a populated **`en/`** directory or a compatible **`.tar.gz`** that unpacks to **`en/`** (same layout as DBpedia’s English spotlight model tarball).
+- A host folder mounted at **`/opt/spotlight/models`** containing either a populated **`en_model/`** directory or a compatible **`.tar.gz`** that unpacks so **`en_model/`** exists under that mount.
 - **Memory:** the JVM uses **`-Xmx15G`** for English; ensure the host (or Docker limits) can accommodate it.
 
 ## Build
@@ -32,7 +32,7 @@ make run MODELS="$(pwd)/models"
 make run MODELS="$(pwd)/models" MODEL_TAR=my-en-model.tar.gz
 ```
 
-The mount is **not** a copy: host and container see the same files. **`spotlight_s3.sh`** only **adds** **`en/`** via **`tar`** when it is missing or empty; it does **not** remove or alter the **`.tar.gz`**.
+The mount is **not** a copy: host and container see the same files. **`spotlight_s3.sh`** only **adds** **`en_model/`** via **`tar`** when it is missing or empty; it does **not** remove or alter the **`.tar.gz`**.
 
 ## Run
 
@@ -66,7 +66,7 @@ Change the port with **`PORT=...`** (default **`2222`**).
 
 ## Startup script (`/bin/spotlight_s3.sh`)
 
-1. If **`/opt/spotlight/models/en`** exists and is non-empty → continue.
+1. If **`/opt/spotlight/models/en_model`** exists and is non-empty → continue.
 2. Else if the configured **`.tar.gz`** exists → **`tar -xf`** into **`/opt/spotlight/models`** (nothing else before start).
 3. Else → error.
 4. Starts **`dbpedia-spotlight.jar`** on **`http://0.0.0.0:80/rest`**.
