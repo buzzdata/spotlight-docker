@@ -4,9 +4,7 @@ services:
     build: .
     image: spotlight-docker
     container_name: spotlight-en
-    volumes:
-      - ./models:/opt/spotlight/models
     restart: unless-stopped
     ports:
       - "0.0.0.0:2222:80"
-    command: /bin/spotlight_s3.sh
+    command: /bin/spotlight_run.sh

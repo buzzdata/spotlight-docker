@@ -1,57 +1,40 @@
 # Spotlight Docker (English)
 
-This image runs [DBpedia Spotlight](https://www.dbpedia-spotlight.org/) for **English only**. It does **not** download models from DBpedia.
+[DBpedia Spotlight](https://www.dbpedia-spotlight.org/) for **English only** — no runtime download from DBpedia.
 
-You **bind-mount one host directory** to **`/opt/spotlight/models`**. The startup script checks whether **`en_model/`** already has model files (the path used after extracting the English model tar); if not, it **extracts** your **`.tar.gz`** once and **does not modify or delete** the archive afterward. Then it starts the service.
+## What you ship to ECR
 
-The container listens on **port 80** internally; the API base path is **`/rest/`** (for example **`/rest/annotate`**).
+1. Put **`spotlight-model-en.tar.gz`** in **`models/spotlight-model-en.tar.gz`** (next to the **`dockerfile`**).
+2. **`make build`** — Docker **extracts** the tarball into **`/opt/spotlight/models/`** during the build (**`en_model/`** ends up in the image). The **`.tar.gz`** is removed from the image after extract; the **extracted files remain**.
+3. **Tag and push** to ECR.
+4. **Run** with **no** models volume. **`CMD`** is **`/bin/spotlight_run.sh`** — the model is already in the image, so there is **no separate prepare step**.
+
+The container listens on **port 80** internally; REST base **`/rest/`** (e.g. **`/rest/annotate`**).
 
 ## Requirements
 
-- Docker
-- A host folder mounted at **`/opt/spotlight/models`** containing either a populated **`en_model/`** directory or a compatible **`.tar.gz`** that unpacks so **`en_model/`** exists under that mount.
-- **Memory:** the JVM uses **`-Xmx15G`** for English; ensure the host (or Docker limits) can accommodate it.
+- **`models/spotlight-model-en.tar.gz`** in the build context.
+- **Memory:** **`-Xmx15G`** for English; size the task/node accordingly.
 
-## Build
+## Entrypoint
 
-```bash
-make build
-```
+**`/bin/spotlight_run.sh`** — verifies **`en_model/`**, then starts **`dbpedia-spotlight.jar`**. To use a different model, change the tarball and **`make build`** again.
 
-Image tag defaults to **`spotlight-docker`** (`IMAGE=...` to override).
+## Makefile
 
-## Model layout (mounted path)
-
-Default tarball path inside the mount: **`spotlight-model-en.tar.gz`**. Another basename: set **`MODEL_TAR`** in **`make`** or **`SPOTLIGHT_MODEL_TAR`** in the container.
-
-Examples:
-
-```bash
-make run MODELS="$(pwd)/models"
-
-make run MODELS="$(pwd)/models" MODEL_TAR=my-en-model.tar.gz
-```
-
-The mount is **not** a copy: host and container see the same files. **`spotlight_s3.sh`** only **adds** **`en_model/`** via **`tar`** when it is missing or empty; it does **not** remove or alter the **`.tar.gz`**.
-
-## Run
-
-| Command | Purpose |
+| Target | Purpose |
 |--------|---------|
-| **`make run`** | Foreground (**`-it`**): logs in the terminal; **Ctrl+C** stops the container. |
-| **`make run-detached`** | Daemon; use **`make logs`**. |
-| **`make stop`** | Stop and remove **`spotlight-en`**. |
-| **`make logs`** | **`docker logs -f`** for detached runs. |
+| **`make build`** | Build image (extract model during build). |
+| **`make run`** / **`make run-detached`** | Run locally (same as ECR: no volume). |
+| **`make stop`** / **`make logs`** | Container lifecycle. |
 
-Variables: **`IMAGE`**, **`CONTAINER`**, **`PORT`**, **`MODELS`**, **`MODEL_TAR`**.
+Variables: **`IMAGE`**, **`CONTAINER`**, **`PORT`**.
 
 ## Docker Compose
 
 ```bash
 docker compose -f spotlight-compose.yml up -d
 ```
-
-Mounts **`./models`** → **`/opt/spotlight/models`** (same rules as above).
 
 ## Quick API check
 
@@ -62,11 +45,4 @@ curl "http://localhost:2222/rest/annotate" \
   -H "Accept: application/json"
 ```
 
-Change the port with **`PORT=...`** (default **`2222`**).
-
-## Startup script (`/bin/spotlight_s3.sh`)
-
-1. If **`/opt/spotlight/models/en_model`** exists and is non-empty → continue.
-2. Else if the configured **`.tar.gz`** exists → **`tar -xf`** into **`/opt/spotlight/models`** (nothing else before start).
-3. Else → error.
-4. Starts **`dbpedia-spotlight.jar`** on **`http://0.0.0.0:80/rest`**.
+Use **`PORT=...`** if not using **2222**.
