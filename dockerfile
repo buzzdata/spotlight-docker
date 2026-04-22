@@ -1,25 +1,30 @@
-FROM openjdk:8-jre-alpine
+FROM eclipse-temurin:8-jre-alpine
 
-MAINTAINER  DBpedia Spotlight Team <dbp-spotlight-developers@lists.sourceforge.net>
+MAINTAINER  DBpedia Spotlight Team <dbpedia-spotlight-developers@lists.sourceforge.net>
 
-ENV SPOTLIGHT  https://sourceforge.net/projects/spotlight-multilingual-docker/files/dbpedia-spotlight-1.1.jar
+ENV SPOTLIGHT=https://sourceforge.net/projects/spotlight-multilingual-docker/files/dbpedia-spotlight-1.1.jar
 
-# adding required packages
 RUN apk update && \
     apk add bash && \
     apk add tshark && \
     apk add --no-cache curl && \
     apk upgrade curl
 
-# downloading spolight model and dbpedia spotlight
-RUN mkdir -p /opt/spotlight/models && \ 
-   cd /opt/spotlight && \
-   wget -O dbpedia-spotlight.jar $SPOTLIGHT && \
-   mkdir -p src/main/resources/templates/
+RUN mkdir -p /opt/spotlight/models && \
+    cd /opt/spotlight && \
+    wget -O dbpedia-spotlight.jar $SPOTLIGHT && \
+    mkdir -p src/main/resources/templates/
 
-# adding the script to the container
-ADD spotlight.sh /bin/spotlight.sh
+COPY spotlight_run.sh /bin/spotlight_run.sh
+COPY __cacert_entrypoint.sh /__cacert_entrypoint.sh
 COPY nif-21.vm /opt/spotlight/src/main/resources/templates/nif-21.vm
-RUN chmod +x /bin/spotlight.sh 
+RUN chmod +x /bin/spotlight_run.sh
+RUN chmod +x /__cacert_entrypoint.sh
+
+COPY models/spotlight-model-en.tar.gz /tmp/spotlight-model-en.tar.gz
+RUN tar -C /opt/spotlight/models -xf /tmp/spotlight-model-en.tar.gz && \
+    rm -f /tmp/spotlight-model-en.tar.gz
 
 EXPOSE 80
+
+CMD ["/bin/spotlight_run.sh"]
