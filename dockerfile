@@ -16,8 +16,10 @@ RUN mkdir -p /opt/spotlight/models && \
     mkdir -p src/main/resources/templates/
 
 COPY spotlight_run.sh /bin/spotlight_run.sh
+COPY __cacert_entrypoint.sh /__cacert_entrypoint.sh
 COPY nif-21.vm /opt/spotlight/src/main/resources/templates/nif-21.vm
 RUN chmod +x /bin/spotlight_run.sh
+RUN chmod +x /__cacert_entrypoint.sh
 
 COPY models/spotlight-model-en.tar.gz /tmp/spotlight-model-en.tar.gz
 RUN tar -C /opt/spotlight/models -xf /tmp/spotlight-model-en.tar.gz && \
